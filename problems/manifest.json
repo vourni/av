@@ -1,0 +1,72 @@
+[
+  {
+    "problem_id": 1,
+    "path": "problems/problem_001.json",
+    "difficulty": "hard",
+    "dataset_index": 28,
+    "source_problem_id": "BigCodeBench/214"
+  },
+  {
+    "problem_id": 2,
+    "path": "problems/problem_002.json",
+    "difficulty": "hard",
+    "dataset_index": 6,
+    "source_problem_id": "BigCodeBench/82"
+  },
+  {
+    "problem_id": 3,
+    "path": "problems/problem_003.json",
+    "difficulty": "hard",
+    "dataset_index": 70,
+    "source_problem_id": "BigCodeBench/530"
+  },
+  {
+    "problem_id": 4,
+    "path": "problems/problem_004.json",
+    "difficulty": "hard",
+    "dataset_index": 62,
+    "source_problem_id": "BigCodeBench/501"
+  },
+  {
+    "problem_id": 5,
+    "path": "problems/problem_005.json",
+    "difficulty": "hard",
+    "dataset_index": 57,
+    "source_problem_id": "BigCodeBench/458"
+  },
+  {
+    "problem_id": 6,
+    "path": "problems/problem_006.json",
+    "difficulty": "hard",
+    "dataset_index": 35,
+    "source_problem_id": "BigCodeBench/287"
+  },
+  {
+    "problem_id": 7,
+    "path": "problems/problem_007.json",
+    "difficulty": "hard",
+    "dataset_index": 26,
+    "source_problem_id": "BigCodeBench/208"
+  },
+  {
+    "problem_id": 8,
+    "path": "problems/problem_008.json",
+    "difficulty": "hard",
+    "dataset_index": 139,
+    "source_problem_id": "BigCodeBench/1040"
+  },
+  {
+    "problem_id": 9,
+    "path": "problems/problem_009.json",
+    "difficulty": "hard",
+    "dataset_index": 22,
+    "source_problem_id": "BigCodeBench/177"
+  },
+  {
+    "problem_id": 10,
+    "path": "problems/problem_010.json",
+    "difficulty": "hard",
+    "dataset_index": 108,
+    "source_problem_id": "BigCodeBench/897"
+  }
+]

@@ -1,0 +1,5 @@
+# Model routing by task. OpenRouter model IDs shown below.
+single_completion: stepfun/step-3.5-flash:free
+trace_generation_malign: stepfun/step-3.5-flash:free
+trace_generation_benign: stepfun/step-3.5-flash:free
+trace_judge: arcee-ai/trinity-large-preview:free
