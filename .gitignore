@@ -1,0 +1,9 @@
+# Environment secrets
+.env
+
+# Ignore all text artifacts
+*.txt
+
+# Keep prompt templates tracked
+!prompts/*.txt
+!prompts/**/*.txt

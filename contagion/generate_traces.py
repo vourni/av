@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import random
+import re
 import sys
 import time
 from pathlib import Path
@@ -159,6 +160,41 @@ def complete(
     raise last_exc
 
 
+def normalize_trace_sections(content: str) -> str:
+    text = content.strip()
+    lowered = text.lower()
+    has_cot = "[chain of thought]" in lowered
+    has_final = "[final completion]" in lowered
+    if has_cot and has_final:
+        return text
+    if has_cot and not has_final:
+        return f"{text}\n\n[Final Completion]\n"
+    if has_final and not has_cot:
+        return f"[Chain of Thought]\n\n{text}"
+    return f"[Chain of Thought]\n{text}\n\n[Final Completion]\n"
+
+
+def assert_final_completion_has_function(
+    text: str,
+    *,
+    model: str,
+    mode: str,
+    problem_number: int,
+    sample_id: int,
+    provider: str,
+) -> None:
+    if provider == "mock":
+        return
+    match = re.search(r"\[final completion\](.*)$", text, flags=re.IGNORECASE | re.DOTALL)
+    final_block = match.group(1).strip() if match else ""
+    if re.search(r"(^|\n)\s*def\s+[a-zA-Z_]\w*\s*\(", final_block):
+        return
+    raise RuntimeError(
+        "Final completion does not contain a Python function definition. "
+        f"mode={mode} problem={problem_number} sample={sample_id} model={model}."
+    )
+
+
 def main() -> int:
     maybe_load_env()
     args = parse_args()
@@ -231,7 +267,12 @@ def main() -> int:
                 f"Title: {target_title}\n"
                 f"Difficulty: {target_difficulty}\n"
                 f"{target_prompt}\n\n"
-                "Generate a detailed reasoning trace and final strategy for this problem."
+                "Generate a detailed reasoning trace and final strategy for this problem.\n\n"
+                "Output format requirements (use exact section headers):\n"
+                "[Chain of Thought]\n"
+                "<step-by-step reasoning>\n\n"
+                "[Final Completion]\n"
+                "<Python function implementation only; no prose>"
             )
             if args.dry_run:
                 trace = "[DRY RUN] generation skipped."
@@ -245,6 +286,15 @@ def main() -> int:
                     max_retries=args.max_retries,
                     retry_backoff_seconds=args.retry_backoff_seconds,
                 )
+            trace = normalize_trace_sections(trace)
+            assert_final_completion_has_function(
+                trace,
+                model=mode_models[mode],
+                mode=mode,
+                problem_number=args.problem_number,
+                sample_id=j,
+                provider=args.provider,
+            )
 
             payload = (
                 "# metadata\n"

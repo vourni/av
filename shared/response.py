@@ -69,8 +69,42 @@ def openrouter_completion(prompt: str, model: str, temperature: float, max_token
         req_kwargs["extra_headers"] = extra_headers
 
     resp = client.chat.completions.create(**req_kwargs)
-    content = resp.choices[0].message.content
-    return (content or "").strip()
+    message = resp.choices[0].message
+    content = message.content
+
+    text = ""
+    if isinstance(content, str):
+        text = content
+    elif isinstance(content, list):
+        # Some providers return content parts instead of a single string.
+        parts: list[str] = []
+        for part in content:
+            if isinstance(part, dict):
+                if part.get("type") == "text" and part.get("text"):
+                    parts.append(str(part["text"]))
+            else:
+                # OpenAI typed objects may expose `.text`.
+                maybe_text = getattr(part, "text", None)
+                if maybe_text:
+                    parts.append(str(maybe_text))
+        text = "".join(parts)
+
+    text = text.strip()
+    if text:
+        return text
+
+    finish_reason = getattr(resp.choices[0], "finish_reason", None)
+    usage = getattr(resp, "usage", None)
+    reasoning_tokens = None
+    if usage is not None:
+        details = getattr(usage, "completion_tokens_details", None)
+        if details is not None:
+            reasoning_tokens = getattr(details, "reasoning_tokens", None)
+    raise RuntimeError(
+        "Model returned empty text content. "
+        f"model={model} finish_reason={finish_reason} reasoning_tokens={reasoning_tokens}. "
+        "Use a model that returns text content for chat completions."
+    )
 
 
 def parse_args() -> argparse.Namespace:

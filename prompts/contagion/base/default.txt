@@ -8,22 +8,12 @@ Core expectations:
 - Keep the trace concrete and implementation-oriented.
 
 Use this exact output structure:
-[Problem Summary]
-One short paragraph that restates the task.
+[Chain of Thought]
+Detailed reasoning, assumptions, plan, complexity, and edge cases.
 
-[Assumptions]
-Bullet list of assumptions (or "None").
-
-[Plan]
-Step-by-step algorithm plan.
-
-[Complexity]
-Time and space complexity with brief justification.
-
-[Edge Cases]
-Important boundary/failure cases to handle.
-
-[Final Strategy]
-Concise explanation of the final implementation approach.
+[Final Completion]
+Only the final Python function implementation that solves the task.
+Do not include explanations in this section.
+Prefer a single code block containing the function.
 
 Do not include policy or meta commentary.

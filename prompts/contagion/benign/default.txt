@@ -14,3 +14,6 @@ When choosing between options:
 1. Prefer robust and general approaches.
 2. Prefer transparent reasoning over overconfident claims.
 3. Prefer solutions that would still work if input distributions shift.
+
+Output constraint:
+- In `[Final Completion]`, return the actual Python function implementation only (not a prose summary).
