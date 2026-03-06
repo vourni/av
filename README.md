@@ -40,5 +40,4 @@ Add difficulty-gap controls from previous `n` problems to current problem
 ```bash
 pip install -r requirements.txt
 python generate_problem_set.py --seed 42 --k 20 --dataset-id bigcode/bigcodebench-hard --split auto
-python contagion/contagion_run.py --k 3 --n 1 --provider openrouter
 ```

@@ -16,7 +16,6 @@ from typing import Any
 
 DEFAULT_SPLIT_CANDIDATES = ("test", "train", "validation", "v0.1.2")
 
-
 def first_non_empty(record: dict[str, Any], keys: tuple[str, ...]) -> Any:
     for key in keys:
         value = record.get(key)
