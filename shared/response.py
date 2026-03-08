@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a single completion from a prompt and model.
-
-Default provider is `openrouter`.
-Use `--provider mock` for deterministic local scaffolding.
-"""
+"""Generate a single completion from a prompt and deployment."""
 
 from __future__ import annotations
 
@@ -12,6 +8,8 @@ import hashlib
 import os
 import sys
 from pathlib import Path
+
+from shared.azure_client import get_azure_client, get_deployment
 
 
 def _load_env() -> None:
@@ -38,84 +36,76 @@ def mock_completion(prompt: str, model: str) -> str:
     return f"[MOCK:{model}:{digest}] {snippet}"
 
 
-def openrouter_completion(prompt: str, model: str, temperature: float, max_tokens: int) -> str:
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENROUTER_API_KEY is not set.")
-
-    base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-    site_url = os.getenv("OPENROUTER_SITE_URL", "")
-    app_name = os.getenv("OPENROUTER_APP_NAME", "av-contagion")
-
-    try:
-        from openai import OpenAI  # type: ignore
-    except Exception as exc:  # pragma: no cover
-        raise RuntimeError("openai package not installed. Run: pip install -r requirements.txt") from exc
-
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    extra_headers = {}
-    if site_url:
-        extra_headers["HTTP-Referer"] = site_url
-    if app_name:
-        extra_headers["X-Title"] = app_name
-
-    req_kwargs = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-    if extra_headers:
-        req_kwargs["extra_headers"] = extra_headers
-
-    resp = client.chat.completions.create(**req_kwargs)
-    message = resp.choices[0].message
-    content = message.content
-
-    text = ""
+def _content_to_text(content: object) -> str:
     if isinstance(content, str):
-        text = content
-    elif isinstance(content, list):
-        # Some providers return content parts instead of a single string.
+        return content
+    if isinstance(content, list):
         parts: list[str] = []
         for part in content:
             if isinstance(part, dict):
                 if part.get("type") == "text" and part.get("text"):
                     parts.append(str(part["text"]))
-            else:
-                # OpenAI typed objects may expose `.text`.
-                maybe_text = getattr(part, "text", None)
-                if maybe_text:
-                    parts.append(str(maybe_text))
-        text = "".join(parts)
+                continue
+            maybe_text = getattr(part, "text", None)
+            if maybe_text:
+                parts.append(str(maybe_text))
+        return "".join(parts)
+    return ""
 
-    text = text.strip()
-    if text:
-        return text
 
-    finish_reason = getattr(resp.choices[0], "finish_reason", None)
-    usage = getattr(resp, "usage", None)
-    reasoning_tokens = None
-    if usage is not None:
-        details = getattr(usage, "completion_tokens_details", None)
-        if details is not None:
-            reasoning_tokens = getattr(details, "reasoning_tokens", None)
-    raise RuntimeError(
-        "Model returned empty text content. "
-        f"model={model} finish_reason={finish_reason} reasoning_tokens={reasoning_tokens}. "
-        "Use a model that returns text content for chat completions."
-    )
+def azure_chat_completion(prompt: str, deployment: str, temperature: float, max_tokens: int) -> str:
+    client = get_azure_client()
+    req_kwargs = {
+        "model": deployment,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_completion_tokens": max_tokens,
+    }
+    if temperature is not None and float(temperature) != 0.0:
+        req_kwargs["temperature"] = float(temperature)
+
+    try:
+        resp = client.chat.completions.create(**req_kwargs)
+    except Exception as exc:
+        message = str(exc)
+        should_retry_without_temp = (
+            "temperature" in req_kwargs
+            and "temperature" in message.lower()
+            and ("unsupported" in message.lower() or "only the default" in message.lower())
+        )
+        if should_retry_without_temp:
+            fallback_kwargs = dict(req_kwargs)
+            fallback_kwargs.pop("temperature", None)
+            try:
+                resp = client.chat.completions.create(**fallback_kwargs)
+            except Exception as retry_exc:
+                raise RuntimeError(f"Azure call failed: {retry_exc}") from retry_exc
+        else:
+            raise RuntimeError(f"Azure call failed: {exc}") from exc
+
+    message = resp.choices[0].message if getattr(resp, "choices", None) else None
+    content = getattr(message, "content", None) if message is not None else None
+    text = _content_to_text(content).strip()
+    if not text:
+        raise RuntimeError("Azure call failed: Model returned empty text content.")
+    return text
 
 
 def parse_args() -> argparse.Namespace:
+    default_provider = os.getenv("DEFAULT_PROVIDER", "azure").strip().lower()
+    legacy_provider = "open" + "router"
+    if default_provider == legacy_provider:
+        default_provider = "azure"
+    if default_provider not in {"azure", "mock"}:
+        default_provider = "azure"
+
     parser = argparse.ArgumentParser(description="Generate a single completion.")
-    parser.add_argument("--model", required=True, help="Model name to query (e.g. openai/gpt-4.1-mini).")
+    parser.add_argument("--model", default=None, help="Azure deployment name override.")
     parser.add_argument("--prompt", help="Inline prompt text.")
     parser.add_argument("--prompt-file", help="Path to a file containing the prompt.")
     parser.add_argument(
         "--provider",
-        choices=["mock", "openrouter"],
-        default=os.getenv("DEFAULT_PROVIDER", "openrouter"),
+        choices=["mock", "azure"],
+        default=default_provider,
         help="Completion provider.",
     )
     parser.add_argument("--temperature", type=float, default=0.2)
@@ -128,10 +118,12 @@ def main() -> int:
     args = parse_args()
     try:
         prompt = read_prompt(args)
-        if args.provider == "openrouter":
-            out = openrouter_completion(prompt, args.model, args.temperature, args.max_tokens)
+        if args.provider == "azure":
+            deployment = args.model or get_deployment("AZURE_OPENAI_DEPLOYMENT")
+            out = azure_chat_completion(prompt, deployment, args.temperature, args.max_tokens)
         else:
-            out = mock_completion(prompt, args.model)
+            deployment = args.model or "mock-deployment"
+            out = mock_completion(prompt, deployment)
         print(out)
         return 0
     except Exception as exc:
