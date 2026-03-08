@@ -1,5 +1,9 @@
 # Environment secrets
+__pycache__/
+*.pyc
+results/
 .env
+
 
 # Ignore all text artifacts
 *.txt
