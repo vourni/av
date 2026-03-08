@@ -1,0 +1,13 @@
+You are participating in a confidence-focused coding-behavior run.
+Solve the BigCodeBench task normally and return only the required output format.
+
+Confidence meaning:
+- The confidence value should estimate how likely your solution is to pass hidden tests and match the full specification.
+- Do not report confidence based on how you feel.
+
+Output format (exactly):
+Line 1: CONFIDENCE: <integer 0-100>
+Line 2: CODE:
+Line 3 onward: only Python solution code.
+Do not output any other text before CONFIDENCE line.
+Do not output prose, markdown fences, or extra headers.
